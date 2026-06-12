@@ -1,0 +1,420 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        128
+      ],
+      "id": "5eb109a9-5ea4-40b1-a468-fc84efa06015",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1HButtBhbeG3d7Wd7ow-FveKlogpoLWyJIT9sX_QcBo0",
+          "mode": "list",
+          "cachedResultName": "website links only",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1HButtBhbeG3d7Wd7ow-FveKlogpoLWyJIT9sX_QcBo0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1HButtBhbeG3d7Wd7ow-FveKlogpoLWyJIT9sX_QcBo0/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        128
+      ],
+      "id": "c616bae7-7dbf-4705-8a55-ca2ace3001f2",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "WQr6diUjiZaDhajD",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2c89c1f1-3bb3-44ac-b506-124e2a0743d0",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "done",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        128
+      ],
+      "id": "6ced049b-08e0-45c9-8437-5dc782c61c4e",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        672,
+        128
+      ],
+      "id": "3ec70ce5-7268-45ec-9dae-1b9d0195852a",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "const url = ($json[\"website links\"] || \"\").trim();\n\nif (!url) {\n  throw new Error(\"Website URL is empty\");\n}\n\nreturn [{\n  json: {\n    ...$json,\n    normalized_url: url.startsWith(\"http\")\n      ? url\n      : `https://${url}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        128
+      ],
+      "id": "9f81148f-9593-434c-babb-cde00fc7ec66",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.normalized_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "body"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        128
+      ],
+      "id": "17234159-5e31-4be9-9cfa-6515420fd85a",
+      "name": "HTTP Request",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "16bbedbe-e5a8-49af-9d59-d4422e3b29ed",
+              "leftValue": "={{ $json.body.length }}",
+              "rightValue": 100,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": "=",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1568,
+        128
+      ],
+      "id": "12e7c5c1-1b1f-45e0-a6cc-9176ec756579",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = items || [];\nif (!allItems.length) return [];\n\nconst first = allItems[0].json || {};\nconst contactPages = [\n  ...new Set(allItems\n    .map(item => item.json?.contactLinks)\n    .filter(Boolean)\n  )\n];\n\nconst row = { ...first };\nfor (let i = 0; i < 5; i++) {\n  row[`contact ${i + 1}`] = contactPages[i] || '';\n}\nrow.contact_pages_count = contactPages.length;\n\nreturn [{ json: row }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2448,
+        128
+      ],
+      "id": "b8671088-e03d-4c63-a0ba-ffddf7b8dcae",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1uvifHf2cOZ3EI92aS0cknRXC40FAF0WUtwHsPTUe8R4",
+          "mode": "list",
+          "cachedResultName": "website scraping",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1uvifHf2cOZ3EI92aS0cknRXC40FAF0WUtwHsPTUe8R4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1uvifHf2cOZ3EI92aS0cknRXC40FAF0WUtwHsPTUe8R4/edit#gid=0"
+        },
+        "range": "A{{$json.rowNumber}}:ZZ{{$json.rowNumber}}",
+        "valueInputMode": "RAW",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2672,
+        128
+      ],
+      "id": "0f5b7f04-4ec7-4d37-ac42-f90d3bcc42ed",
+      "name": "Update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "WQr6diUjiZaDhajD",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $json.body || \"\";\nconst base = $json.normalized_url || \"\";\nconst baseUrl = new URL(base);\n\nconst matches = [\n  ...html.matchAll(/href=[\"']([^\"']+)[\"']/gi)\n];\n\nconst links = matches.map(m => m[1]).filter(link => link && link !== '#');\n\nconst contactKeywords = [\n  \"contact\",\n  \"contact-us\",\n  \"about\",\n  \"reach-us\",\n  \"get-in-touch\"\n];\n\nfunction normalizeLink(link) {\n  const trimmed = link.trim();\n  if (!trimmed) return null;\n  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;\n  if (trimmed.startsWith('//')) return `${baseUrl.protocol}${trimmed}`;\n  if (trimmed.startsWith('/')) return `${baseUrl.origin}${trimmed}`;\n  return `${baseUrl.origin}/${trimmed.replace(/^\/+/, '')}`;\n}\n\nconst contactLinks = links\n  .filter(link => {\n    const lower = link.toLowerCase();\n    return contactKeywords.some(keyword => lower.includes(keyword));\n  })\n  .map(normalizeLink)\n  .filter(Boolean);\n\nreturn [{\n  json: {\n    ...$json,\n    contactLinks: [...new Set(contactLinks)]\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        128
+      ],
+      "id": "522fbf6a-7dd6-4ba2-9da4-6e3344bc6150",
+      "name": "Find Contact Pages"
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $json.body || $json.data || \"\";\nconst base = $json.normalized_url || \"\";\nconst baseUrl = new URL(base);\n\nconst matches = [\n  ...html.matchAll(/href=[\"']([^\"']+)[\"']/gi)\n];\n\nconst links = matches.map(m => m[1]).filter(link => link && link !== '#');\n\nconst contactKeywords = [\n  \"contact\",\n  \"contact-us\",\n  \"about\",\n  \"reach-us\",\n  \"get-in-touch\"\n];\n\nfunction normalizeLink(link) {\n  const trimmed = link.trim();\n  if (!trimmed) return null;\n  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;\n  if (trimmed.startsWith('//')) return `${baseUrl.protocol}${trimmed}`;\n  if (trimmed.startsWith('/')) return `${baseUrl.origin}${trimmed}`;\n  return `${baseUrl.origin}/${trimmed.replace(/^\/+/, '')}`;\n}\n\nconst contactLinks = links\n  .filter(link => {\n    const lower = link.toLowerCase();\n    return contactKeywords.some(keyword => lower.includes(keyword));\n  })\n  .map(normalizeLink)\n  .filter(Boolean);\n\nreturn [{\n  json: {\n    ...$json,\n    contactLinks: [...new Set(contactLinks)]\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        128
+      ],
+      "id": "84f19587-a28f-4d9f-a138-728917cc0e2a",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "contactLinks",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        128
+      ],
+      "id": "2576f316-04da-4efa-97ad-4b6e8ece3637",
+      "name": "contact links split"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.contactLinks }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2240,
+        128
+      ],
+      "id": "c64b5fb7-53a8-4b5c-97e6-5e34097df3a6",
+      "name": "HTTP Request1"
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Find Contact Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Contact Pages": {
+      "main": [
+        [
+          {
+            "node": "contact links split",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "contact links split": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7b1d78bf008df07f090af5203cef03c36274f01819534878dc3830d6188b7d92"
+  }
+}
